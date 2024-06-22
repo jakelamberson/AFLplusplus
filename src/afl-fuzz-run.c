@@ -185,7 +185,9 @@ write_to_testcase(afl_state_t *afl, void **mem, u32 len, u32 fix) {
 
       }
 
+      if (*mem != AFL_BUF_PARAM(out)) {
       *mem = new_buf;
+      }
       afl_swap_bufs(AFL_BUF_PARAM(out), AFL_BUF_PARAM(out_scratch));
 
     }
@@ -213,7 +215,9 @@ write_to_testcase(afl_state_t *afl, void **mem, u32 len, u32 fix) {
       } else {
 
         /* restore the original memory which was saved in new_mem */
+        if (*mem != AFL_BUF_PARAM(out)) {
         *mem = new_mem;
+        }
         afl_swap_bufs(AFL_BUF_PARAM(out), AFL_BUF_PARAM(out_scratch));
 
       }

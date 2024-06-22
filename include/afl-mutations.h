@@ -1751,7 +1751,8 @@ u32 mutation_strategy_exploitation_binary[MUT_STRATEGY_ARRAY_SIZE] = {
 
 };
 
-u32 afl_mutate(afl_state_t *, u8 *, u32, u32, bool, bool, u8 *, u32, u32);
+void afl_mutate_init(bool, u8);
+u32 afl_mutate(afl_state_t *, u8 *, u32, u32, u8 *, u32, u32);
 u32 choose_block_len(afl_state_t *, u32);
 
 /* Helper to choose random block len for block operations in fuzz_one().
@@ -1798,17 +1799,48 @@ inline u32 choose_block_len(afl_state_t *afl, u32 limit) {
 
 }
 
+static u32 *mutation_array = (u32 *)&mutation_strategy_exploration_binary;
+
+inline void afl_mutate_init(bool is_text, u8 is_exploitation) {
+
+  if (unlikely(is_text)) {
+
+    if (likely(!is_exploitation)) {
+
+      mutation_array = (u32 *)&mutation_strategy_exploration_text;
+
+    } else {
+
+      mutation_array = (u32 *)&mutation_strategy_exploitation_text;
+
+    }
+
+  } else {
+
+    if (likely(!is_exploitation)) {
+
+      mutation_array = (u32 *)&mutation_strategy_exploration_binary;
+
+    } else {
+
+      mutation_array = (u32 *)&mutation_strategy_exploitation_binary;
+
+    }
+
+  }
+
+}
+
 inline u32 afl_mutate(afl_state_t *afl, u8 *buf, u32 len, u32 steps,
-                      bool is_text, bool is_exploration, u8 *splice_buf,
+                      u8 *splice_buf,
                       u32 splice_len, u32 max_len) {
 
-  if (!buf || !len) { return 0; }
+  if (unlikely(!buf || !len)) { return 0; }
 
-  u32       *mutation_array;
   static u8 *tmp_buf = NULL;
   static u32 tmp_buf_size = 0;
 
-  if (max_len > tmp_buf_size) {
+  if (unlikely(max_len > tmp_buf_size)) {
 
     if (tmp_buf) {
 
@@ -1831,32 +1863,6 @@ inline u32 afl_mutate(afl_state_t *afl, u8 *buf, u32 len, u32 steps,
     }
 
     tmp_buf_size = max_len;
-
-  }
-
-  if (is_text) {
-
-    if (is_exploration) {
-
-      mutation_array = (u32 *)&mutation_strategy_exploration_text;
-
-    } else {
-
-      mutation_array = (u32 *)&mutation_strategy_exploitation_text;
-
-    }
-
-  } else {
-
-    if (is_exploration) {
-
-      mutation_array = (u32 *)&mutation_strategy_exploration_binary;
-
-    } else {
-
-      mutation_array = (u32 *)&mutation_strategy_exploitation_binary;
-
-    }
 
   }
 
