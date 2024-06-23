@@ -80,32 +80,74 @@ double compute_weight(afl_state_t *afl, struct queue_entry *q,
 
     } else if (likely(t <= 0.25))
 
-      weight *= 0.9;
+      weight *= 0.95;
     else if (likely(t <= 0.5)) {
 
-    } else if (likely(t < 1.0))
+    } else if (likely(t <= 0.75))
+
+      weight *= 1.05;
+    else if (likely(t <= 1.0))
+      weight *= 1.1;
+    else if (likely(t < 1.25))
+      weight *= 0.2;  // ???
+    else if (likely(t <= 1.5)) {
+
+    } else if (likely(t <= 2.0))
+
+      weight *= 1.1;
+    else if (likely(t <= 2.5)) {
+
+    } else if (likely(t <= 5.0))
 
       weight *= 1.15;
-    else if (unlikely(t > 2.5 && t < 5.0))
+    else if (likely(t <= 20.0))
       weight *= 1.1;
 
   }
 
   double l = q->len / avg_len;
   if (likely(l < 0.1))
-    weight *= 0.75;
-  else if (likely(l < 0.25))
-    weight *= 1.1;
-  else if (unlikely(l >= 10))
-    weight *= 1.1;
+    weight *= 0.5;
+  else if (likely(l <= 0.5)) {
+
+  } else if (likely(l <= 1.25))
+
+    weight *= 1.05;
+  else if (likely(l <= 1.75)) {
+
+  } else if (likely(l <= 2.0))
+
+    weight *= 0.95;
+  else if (likely(l <= 5.0)) {
+
+  } else if (likely(l <= 10.0))
+
+    weight *= 1.05;
+  else
+    weight *= 1.15;
 
   double bms = q->bitmap_size / avg_bitmap_size;
-  if (likely(bms < 0.5))
-    weight *= (1.0 + ((bms - 0.5) / 2));
-  else if (unlikely(bms > 1.33))
-    weight *= 1.1;
+  if (likely(bms < 0.1))
+    weight *= 0.01;
+  else if (likely(bms <= 0.25))
+    weight *= 0.55;
+  else if (likely(bms <= 0.5)) {
 
-  // if (unlikely(q->favored)) { weight *= 5; }
+  } else if (likely(bms <= 0.75))
+
+    weight *= 1.2;
+  else if (likely(bms <= 1.25))
+    weight *= 1.3;
+  else if (likely(bms <= 1.75))
+    weight *= 1.25;
+  else if (likely(bms <= 2.0)) {
+
+  } else if (likely(bms <= 2.5))
+
+    weight *= 1.3;
+  else
+    weight *= 0.75;
+
   if (unlikely(!q->was_fuzzed)) { weight *= 2; }
   if (unlikely(q->fs_redundant)) { weight *= 0.75; }
 
