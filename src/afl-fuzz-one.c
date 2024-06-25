@@ -29,6 +29,39 @@
 #include "cmplog.h"
 #include "afl-mutations.h"
 
+u32 get_splice_item(afl_state_t *afl, u8 **data) {
+
+  /* check if splicing makes sense yet (enough entries) */
+  if (likely(afl->ready_for_splicing_count > 1)) {
+
+    /* Pick a random other queue entry for passing to external API
+       that has the necessary length */
+
+    u32                 tid;
+    struct queue_entry *target;
+
+    do {
+
+      tid = rand_below(afl, afl->queued_items);
+
+    } while (unlikely(tid == afl->current_entry ||
+
+                      afl->queue_buf[tid]->len < 4));
+
+    afl->splicing_with = tid;
+    target = afl->queue_buf[tid];
+
+    /* Read the additional testcase into a new buffer. */
+    *data = queue_testcase_get(afl, target);
+    return target->len;
+
+  }
+
+  *data = NULL;
+  return 0;
+
+}
+
 /* MOpt */
 
 static int select_algorithm(afl_state_t *afl, u32 max_algorithm) {
@@ -329,7 +362,7 @@ u8 fuzz_one_original(afl_state_t *afl) {
   u32 len, temp_len;
   u32 j;
   u32 i;
-  u8 *in_buf, *out_buf, *orig_in, *ex_tmp;
+  u8 *in_buf, *out_buf, *orig_in = NULL, *ex_tmp;
   u64 havoc_queued = 0, orig_hit_cnt, new_hit_cnt = 0, prev_cksum, _prev_cksum;
   u32 splice_cycle = 0, perf_score = 100, orig_perf;
   const u32 max_seed_size = afl->max_length;
@@ -2149,11 +2182,6 @@ havoc_stage:
 
   afl_mutate_init(afl->queue_cur->is_ascii, afl->fuzz_mode);
 
-  struct queue_entry *target = NULL;
-  u32                 tid;
-  u8                 *new_buf = NULL;
-  u32                 target_len = 0;
-
   for (afl->stage_cur = 0; afl->stage_cur < afl->stage_max; ++afl->stage_cur) {
 
     u32 use_stacking = 1 + rand_below(afl, stack_max);
@@ -2202,31 +2230,8 @@ havoc_stage:
 
     }
 
-    /* check if splicing makes sense yet (enough entries) */
-    if (likely(afl->ready_for_splicing_count > 1)) {
-
-      /* Pick a random other queue entry for passing to external API
-         that has the necessary length */
-
-      do {
-
-        tid = rand_below(afl, afl->queued_items);
-
-      } while (unlikely(tid == afl->current_entry ||
-
-                        afl->queue_buf[tid]->len < 4));
-
-      target = afl->queue_buf[tid];
-      afl->splicing_with = tid;
-
-      /* Read the additional testcase into a new buffer. */
-      new_buf = queue_testcase_get(afl, target);
-      target_len = target->len;
-
-    }
-
-    temp_len = afl_mutate(afl, out_buf, temp_len, use_stacking, new_buf,
-                          target_len, max_seed_size);
+    temp_len = afl_mutate(afl, out_buf, temp_len, use_stacking, get_splice_item,
+                          max_seed_size);
 
     /*
         retry_havoc_step: {

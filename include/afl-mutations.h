@@ -1752,8 +1752,10 @@ u32 mutation_strategy_exploitation_binary[MUT_STRATEGY_ARRAY_SIZE] = {
 };
 
 void afl_mutate_init(bool, u8);
-u32 afl_mutate(afl_state_t *, u8 *, u32, u32, u8 *, u32, u32);
-u32 choose_block_len(afl_state_t *, u32);
+u32  get_splice_item(afl_state_t *afl, u8 **data);
+u32  afl_mutate(afl_state_t *, u8 *, u32, u32,
+                u32(get_splice)(afl_state_t *, u8 **), u32);
+u32  choose_block_len(afl_state_t *, u32);
 
 /* Helper to choose random block len for block operations in fuzz_one().
    Doesn't return zero, provided that max_len is > 0. */
@@ -1832,13 +1834,12 @@ inline void afl_mutate_init(bool is_text, u8 is_exploitation) {
 }
 
 inline u32 afl_mutate(afl_state_t *afl, u8 *buf, u32 len, u32 steps,
-                      u8 *splice_buf,
-                      u32 splice_len, u32 max_len) {
+                      u32(get_splice)(afl_state_t *, u8 **), u32 max_len) {
 
   if (unlikely(!buf || !len)) { return 0; }
 
-  static u8 *tmp_buf = NULL;
-  static u32 tmp_buf_size = 0;
+  static u8 *tmp_buf = NULL, *splice_buf;
+  static u32 tmp_buf_size = 0, splice_len;
 
   if (unlikely(max_len > tmp_buf_size)) {
 
@@ -2627,6 +2628,7 @@ inline u32 afl_mutate(afl_state_t *afl, u8 *buf, u32 len, u32 steps,
 
       case MUT_SPLICE_OVERWRITE: {
 
+        if (likely(get_splice)) { splice_len = get_splice(afl, &splice_buf); }
         if (unlikely(!splice_buf || !splice_len)) { goto retry_havoc_step; }
 
         /* overwrite mode */
@@ -2647,6 +2649,7 @@ inline u32 afl_mutate(afl_state_t *afl, u8 *buf, u32 len, u32 steps,
 
       case MUT_SPLICE_INSERT: {
 
+        if (likely(get_splice)) { splice_len = get_splice(afl, &splice_buf); }
         if (unlikely(!splice_buf || !splice_len)) { goto retry_havoc_step; }
 
         if (unlikely(len + HAVOC_BLK_XL >= max_len)) { goto retry_havoc_step; }
